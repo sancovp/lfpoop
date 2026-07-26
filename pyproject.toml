@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lfpoop"
+version = "0.1.0"
+description = "LFPOOP - Least-Fixed-Point Object-Oriented Programming: the Manual as data in Python and Prolog; the onion runtime; the compiler loop; fixpoint and Scott domain modeled on itself."
+requires-python = ">=3.10"
+dependencies = ["uco"]
+license = {text = "MIT"}
+
+[tool.setuptools.packages.find]
+include = ["lfpoop*"]
