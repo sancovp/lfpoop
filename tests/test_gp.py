@@ -101,6 +101,13 @@ def main():
                       rng=random.Random(0), size=2)
     checks["tournament_picks_winner"] = t == [better]
 
+    # the bandit strategy: same rate, fewer samples -> exploration credit.
+    wide = (g1, {"primary": GP.rate(1, 8)})     # ~0.125, wide interval
+    narrow = (g3, {"primary": GP.rate(10, 80)})  # 0.125, narrow interval
+    checks["ucb_prefers_undersampled_arm"] = (
+        GP.ucb([narrow, wide], 1, "primary")[0][0]["id"] == g1["id"]
+        and GP.ucb([narrow, better], 1, "primary")[0][0]["id"] == gb["id"])
+
     # evolve(): deterministic domain — fitness = value at ("x",) capped;
     # a ladder mutator proposes x+1 each generation; must climb, dedup,
     # respect budget, and record the bestiary.

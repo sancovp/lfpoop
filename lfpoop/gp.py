@@ -190,6 +190,22 @@ def tournament(scored, mu, key, baseline=None, rng=None, size=2):
     return winners
 
 
+def ucb(scored, mu, key, baseline=None, c=1.0):
+    """The BANDIT as a selection strategy — the sm_gate/manifold weight
+    system's explore/exploit at population grain. Rate metrics already
+    carry (k, n) = arm statistics; the acquisition is mean + c·halfwidth
+    of the Wilson interval (optimism in the face of uncertainty): an
+    under-sampled genome gets exploration credit a well-sampled equal
+    performer does not."""
+    def acq(f):
+        m = f[key]
+        if isinstance(m, dict) and "ci" in m:
+            lo, hi = m["ci"]
+            return m["rate"] + c * (hi - lo) / 2
+        return _primary(f, key)
+    return sorted(scored, key=lambda x: -acq(x[1]))[:mu]
+
+
 def pareto_front(scored, mu, keys, baseline=None):
     """Non-dominated set over several metrics (multi-objective)."""
     def dominates(fa, fb):
