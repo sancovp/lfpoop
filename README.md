@@ -21,6 +21,7 @@ Every object answers one question: **"what is my next admissible closure?"**
 | `lfpoop/climb.py` | **`kleene_climb`** — the ONE instruction: locate yourself from real artifacts, answer the one question (next admissible closure + exactly which check it requires), optionally take the step (only the rung is takeable — cooling and rites are derived from artifacts, never fabricated) |
 | `lfpoop/onion2.py` | ONION-V2 (optional extra `lfpoop[onion2]`): rings as `RenderablePiece` DATA, classes generated via `create_model` + runtime `add_method` — and the **activation semantics**: a verb is a template with slots; `bind()` is one monotone substitution; the method activates at the LFP of substitutions (`soup()`/`heat()` name what's unbound); `morph()` swaps the config and transports surviving bindings; JSON/XML are thin parsers into the same data |
 | `lfpoop/template_mixins.py` | vendored verbatim: the original TemplateAttributeMixin/TemplateMethodMixin kit (runtime method/attribute attachment) |
+| `lfpoop/deltas.py` | the treeshell category_theory shape with the laws as TESTS: typed delta ops (override/add/exclude) whose composition is closed + associative (exhaustively verified, refusals agreeing) and satisfies the action law; genes-as-deltas with `crossover` (conflicts surfaced by name, never silently merged); `fork()` with lineage recorded and witness history honestly stripped (non-transferability); a substrate fibration whose preservation check is BEHAVIORAL |
 | `lfpoop/owl.py` | **everything recursively renders its own ontology**: the ladder as a DL subsumption chain (leq IS ⊑), golden/is_agent as DEFINED classes (a reasoner's job), States/Nodes/stores as individuals, rings as restricted classes — `render_owl()` stamped on every class, composites render by composing their parts' renders, `rings_from_owl` closes the loop the other way, `render_sdk_owl()` emits the whole SDK as ONE ontology |
 
 `.lfpoop/store.jsonl` is the SDK's own crystallized provenance: it currently
@@ -35,6 +36,7 @@ python3 tests/test_domain_chains.py  # the Scott domain + UCO retrofit
 python3 tests/test_full.py           # onion + compiler + gauge/handler + 15→9→7
 python3 tests/test_onion2_climb.py   # ONION-V2 activation semantics + kleene_climb
 python3 tests/test_owl.py            # the recursive self-ontology (owlready2 load iff present)
+python3 tests/test_deltas.py         # the delta algebra laws + crossover + fork + fibration
 ```
 
 MIT.

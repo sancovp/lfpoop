@@ -5,6 +5,7 @@ from .ontology import (THE_QUESTION, LADDER, ARCHITECTURE, COOLING, LOOP,
 from . import domain
 from . import prolog
 from . import onion
+from . import deltas
 from .climb import kleene_climb, REQUIREMENTS
 # chains imports uco; kept lazy so the stdlib core stays zero-dep:
 #   from lfpoop import chains
