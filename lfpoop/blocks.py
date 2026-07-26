@@ -91,6 +91,13 @@ def blockify(fn):
     """The function's body as LOGIC BLOCK data. Returns (blocks, meta):
     meta = {name, params, defaults_src, globals} for re-emission."""
     src = textwrap.dedent(inspect.getsource(fn))
+    return blockify_source(src, fn.__globals__)
+
+
+def blockify_source(src, globals_ns=None):
+    """blockify from SOURCE TEXT (the candidate-envelope intake path —
+    exec'd code has no inspect.getsource). Same contract as blockify."""
+    src = textwrap.dedent(src)
     tree = ast.parse(src)
     fdef = tree.body[0]
     if not isinstance(fdef, ast.FunctionDef):
@@ -125,7 +132,7 @@ def blockify(fn):
         bound |= set(writes)
     sig = ast.unparse(fdef.args)
     return blocks, {"name": fdef.name, "params": params,
-                    "signature": sig, "globals": fn.__globals__}
+                    "signature": sig, "globals": globals_ns or {}}
 
 
 def functionalize(block, prefix="block"):
