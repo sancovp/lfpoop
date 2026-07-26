@@ -18,6 +18,9 @@ Every object answers one question: **"what is my next admissible closure?"**
 | `lfpoop/codething.py` | real artifacts mirrored to Node records (content-hash graph identity), an append-only store, `agentify()` (the six rites, granted only against a node's own artifacts), and `accept_witness` — the handler seat |
 | `lfpoop/compiler.py` | the loop verbs for real: quarantined materialize, subprocess test, process-witness, `goldenize` = a 6/7 **gauge** (the 7th cooling step belongs to an external handler — the compiler cannot self-goldenize) |
 | `lfpoop/selfapply.py` | the compiler compiling the SDK's own source through its own loop |
+| `lfpoop/climb.py` | **`kleene_climb`** — the ONE instruction: locate yourself from real artifacts, answer the one question (next admissible closure + exactly which check it requires), optionally take the step (only the rung is takeable — cooling and rites are derived from artifacts, never fabricated) |
+| `lfpoop/onion2.py` | ONION-V2 (optional extra `lfpoop[onion2]`): rings as `RenderablePiece` DATA, classes generated via `create_model` + runtime `add_method` — and the **activation semantics**: a verb is a template with slots; `bind()` is one monotone substitution; the method activates at the LFP of substitutions (`soup()`/`heat()` name what's unbound); `morph()` swaps the config and transports surviving bindings; JSON/XML are thin parsers into the same data |
+| `lfpoop/template_mixins.py` | vendored verbatim: the original TemplateAttributeMixin/TemplateMethodMixin kit (runtime method/attribute attachment) |
 
 `.lfpoop/store.jsonl` is the SDK's own crystallized provenance: it currently
 models itself at **distance 7** from its own fixpoint, every step from a real
@@ -29,6 +32,7 @@ artifact or a recorded external witness.
 python3 tests/test_lfpoop.py         # the Manual-as-data + Prolog roundtrip
 python3 tests/test_domain_chains.py  # the Scott domain + UCO retrofit
 python3 tests/test_full.py           # onion + compiler + gauge/handler + 15→9→7
+python3 tests/test_onion2_climb.py   # ONION-V2 activation semantics + kleene_climb
 ```
 
 MIT.

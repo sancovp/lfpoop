@@ -10,5 +10,8 @@ requires-python = ">=3.10"
 dependencies = ["uco"]
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+onion2 = ["pydantic>=2", "pydantic-stack-core"]
+
 [tool.setuptools.packages.find]
 include = ["lfpoop*"]

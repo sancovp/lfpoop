@@ -4,5 +4,9 @@ from .ontology import (THE_QUESTION, LADDER, ARCHITECTURE, COOLING, LOOP,
                        Node, next_level, admissible_transition, run_loop)
 from . import domain
 from . import prolog
+from . import onion
+from .climb import kleene_climb, REQUIREMENTS
 # chains imports uco; kept lazy so the stdlib core stays zero-dep:
 #   from lfpoop import chains
+# onion2 imports pydantic + pydantic_stack_core; kept lazy for the same law:
+#   from lfpoop import onion2
