@@ -107,12 +107,12 @@ def _verb_accesses(source: str):
     return used
 
 
-def _compile_verb(verb: VerbSpec):
+def _compile_verb(verb: VerbSpec, verb_globals=None):
     ns = {}
     code = ("def {n}(self, *args, **kwargs):\n".format(n=verb.name)
             + textwrap.indent(textwrap.dedent(verb.source).strip() or "pass",
                               "    "))
-    exec(code, {}, ns)                  # the template, made callable
+    exec(code, dict(verb_globals or {}), ns)   # the template, made callable
     return ns[verb.name]
 
 
@@ -131,7 +131,8 @@ def _slot_gate(verb: VerbSpec, fn):
     return gated
 
 
-def assemble(name: str, rings: List[RingSpec], base_capabilities=()):
+def assemble(name: str, rings: List[RingSpec], base_capabilities=(),
+             verb_globals=None):
     """Generate the onion class from ring DATA and return an INSTANCE (the
     binding environment lives at instance grain). First-listed ring is
     outermost; validation is inside-out, refusals name the gap (v1's laws)."""
@@ -168,7 +169,8 @@ def assemble(name: str, rings: List[RingSpec], base_capabilities=()):
     }
     for r in reversed(rings):                      # attach innermost first
         for v in r.verbs:
-            inst.add_method(v.name, _slot_gate(v, _compile_verb(v)),
+            inst.add_method(v.name,
+                            _slot_gate(v, _compile_verb(v, verb_globals)),
                             description=f"ring {r.name} verb (slots {v.slots})")
     return inst
 
