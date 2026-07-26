@@ -1,98 +1,115 @@
-"""classify tests — the classification tier on REAL SDK code, exact.
+"""classify tests — CLASS-IFY: curried function → class, on real code, exact.
 
-C1  wilson (real) → verdict pure; alphabet exactly {math: ambient:pure}.
-C2  deltas._substrate_module (real, writes files) → verdict effectful;
-    os in ambient:effect; open caught as an effect call.
-C3  ring coupling on the REAL learned structure: roll up lfpoop.deltas
-    from its static wiring, then classify crossover's source — its
-    placement is compose's ring, verdict ring_coupled, exactly.
-C4  the curry plan drives every free name: config → curry_to_slot,
-    ring member → bind_ring, math → leave, os → isolate_effect,
-    unresolvable → demand — all five actions in one real-shaped candidate,
-    slots/demands lists exact.
-C5  effect LOCALIZATION at block grain: a function with one effectful
-    statement among pure ones — exactly that block marked, the others not.
+K1  wilson (REAL SDK code), curried over z: Wilson(z=1.96)(k, n) equals
+    wilson(k, n, 1.96) over a sweep (THE SHADOW LAW through the class);
+    a different binding is a different instance with different behavior —
+    partial application reified as construction.
+K2  soup/monotone/heat on the class: unbound call refused naming the slot;
+    rebind refused; heat 1→0; non-slot bind refused (residue is the call's).
+K3  the emitted CLASS SOURCE is standalone code out — exec'd in a clean
+    namespace (plus the impl's own needs) and carries __curried__/
+    __residue__ as data.
+K4  the decider wires in: with a config context, class_ify chooses slots
+    itself via the curry plan (api_key curries, month stays residue).
+K5  the GROUP case (apionize as code out): two functions sharing an
+    alphabet → one class, methods run the real impls with bound state,
+    per-method soup named.
+K6  refusal: nothing curries → refused by name (a class with no bound
+    state is just the function).
 
 Run: python3 tests/test_classify.py
 """
 import inspect
+import math
 import os
-import random
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lfpoop import classify as C
-from lfpoop import deltas as DL
-from lfpoop import rollup as R
+from lfpoop import classify as K
 from lfpoop.gp import wilson
 
 
 def main():
     checks = {}
+    wsrc = inspect.getsource(wilson)
 
-    # C1 — real pure function.
-    c1 = C.classify_source(inspect.getsource(wilson))
-    checks["C1_wilson_pure_exact"] = (
-        c1["verdict"] == "pure"
-        and c1["alphabet"] == {"math": "ambient:pure"})
+    # K1 — the class IS the curried function; shadow over a real sweep.
+    csrc, meta = K.class_ify(wsrc, slots=["z"])
+    Wilson = K.compile_class(csrc, meta, {"math": math})
+    w196 = Wilson(z=1.96)
+    w300 = Wilson(z=3.0)
+    sweep = [(k, n) for n in (2, 10, 58) for k in range(0, n + 1,
+                                                       max(1, n // 5))]
+    checks["K1_shadow_through_class"] = (
+        all(w196(k, n) == wilson(k, n, 1.96) for (k, n) in sweep)
+        and all(w300(k, n) == wilson(k, n, 3.0) for (k, n) in sweep)
+        and w300(5, 58) != w196(5, 58)
+        and meta["curried"] == ["z"] and meta["residue"] == ["k", "n"])
 
-    # C2 — real effectful function.
-    c2 = C.classify_source(inspect.getsource(DL._substrate_module))
-    checks["C2_effectful_exact"] = (
-        c2["verdict"] == "effectful"
-        and c2["alphabet"].get("os") == "ambient:effect"
-        and "open" in c2["effect_calls"])
+    # K2 — soup / monotone / heat / alphabet discipline.
+    cold = Wilson()
+    checks["K2a_heat"] = (cold.heat == 1 and w196.heat == 0
+                          and cold.soup == ["z"])
+    try:
+        cold(5, 58)
+        checks["K2b_soup_refused_named"] = False
+    except RuntimeError as e:
+        checks["K2b_soup_refused_named"] = "'z'" in str(e)
+    cold.bind("z", 2.0)
+    checks["K2c_bind_activates"] = (cold.heat == 0
+                                    and cold(5, 58) == wilson(5, 58, 2.0))
+    try:
+        cold.bind("z", 9.9)
+        checks["K2d_monotone"] = False
+    except ValueError as e:
+        checks["K2d_monotone"] = "monotone" in str(e)
+    try:
+        Wilson().bind("k", 5)
+        checks["K2e_residue_not_bindable"] = False
+    except KeyError as e:
+        checks["K2e_residue_not_bindable"] = "curried alphabet" in str(e)
 
-    # C3 — ring coupling against the REAL learned roll-up (static wiring).
-    functions, static_edges = R.bank(DL)
-    wiring = R.combine_wiring(static_edges, {})
-    _, assign = R.learn_rollup(functions, wiring, rng=random.Random(5))
-    rings = {}
-    for fn, r in assign.items():
-        rings.setdefault(r, []).append(fn)
-    c3 = C.classify_source(inspect.getsource(DL.crossover),
-                           context={"rings": rings})
-    checks["C3_ring_coupled_placement_exact"] = (
-        c3["placement"] == assign["compose"]
-        and c3["verdict"] == f"ring_coupled:{assign['compose']}"
-        and c3["alphabet"]["compose"] == f"ring:{assign['compose']}")
+    # K3 — code out: standalone source with metadata as data.
+    checks["K3_code_out_standalone"] = (
+        "class Wilson:" in csrc and "_impl_wilson" in csrc
+        and Wilson.__curried__ == ("z",)
+        and Wilson.__residue__ == ("k", "n"))
 
-    # C4 — the full curry plan, all five actions.
+    # K4 — the decider chooses the slots (alphabets → classify).
     src = """
-def sync_report(api_key, month):
-    raw = compose(fetch_rows(month), [])
-    stats = math.fsum(x for x in [1.0])
-    os.makedirs('/tmp/x', exist_ok=True)
-    label = mystery_labeler(raw)
-    return (api_key, stats, label)
+def send_report(api_key, month):
+    return ('sent', api_key, month)
 """
-    plan = C.curry_plan(src, context={
-        "rings": rings, "config_slots": ["api_key"]})
-    checks["C4_curry_plan_exact"] = (
-        plan["plan"]["api_key"] == "curry_to_slot"
-        and plan["plan"]["compose"] == f"bind_ring:{assign['compose']}"
-        and plan["plan"]["math"] == "leave"
-        and plan["plan"]["os"] == "isolate_effect"
-        and plan["plan"]["mystery_labeler"] == "demand"
-        and plan["plan"]["fetch_rows"] == "demand"
-        and plan["slots"] == ["api_key"]
-        and plan["demands"] == ["fetch_rows", "mystery_labeler"]
-        and plan["verdict"] == "effectful")
+    csrc4, m4 = K.class_ify(src, context={"config_slots": ["api_key"]})
+    Sender = K.compile_class(csrc4, m4)
+    checks["K4_decider_chooses_slots"] = (
+        m4["curried"] == ["api_key"] and m4["residue"] == ["month"]
+        and Sender(api_key="K7")("07") == ("sent", "K7", "07"))
 
-    # C5 — effect localization at block grain.
-    src5 = """
-def summarize(xs):
-    total = math.fsum(xs)
-    mean = total / len(xs)
-    os.makedirs('/tmp/reports', exist_ok=True)
-    return mean
-"""
-    blocks = C.classify_blocks(src5)
-    checks["C5_effect_localized_to_one_block"] = (
-        [b["effect"] for b in blocks] == [False, False, True, False]
-        and blocks[2]["global_frees"] == {"os": "ambient:effect"}
-        and blocks[0]["global_frees"] == {"math": "ambient:pure"})
+    # K5 — the group case: one shared alphabet, many residue methods.
+    fa = "def fetch(api_key, base_url, uid):\n    return ('GET', base_url, uid, api_key)\n"
+    fb = "def push(api_key, base_url, payload):\n    return ('POST', base_url, payload, api_key)\n"
+    gsrc, gm = K.class_ify_group("toy_api", [fa, fb],
+                                 slots=["api_key", "base_url"])
+    Api = K.compile_class(gsrc, gm)
+    api = Api(api_key="K", base_url="https://x")
+    checks["K5_group_class"] = (
+        api.fetch(uid="7") == ("GET", "https://x", "7", "K")
+        and api.push(payload="p") == ("POST", "https://x", "p", "K")
+        and gm["methods"]["fetch"]["residue"] == ["uid"])
+    try:
+        Api(api_key="K").push(payload="p")
+        checks["K5b_group_soup_named"] = False
+    except RuntimeError as e:
+        checks["K5b_group_soup_named"] = "base_url" in str(e)
+
+    # K6 — nothing curries → refused.
+    try:
+        K.class_ify("def add(a, b):\n    return a + b\n", slots=[])
+        checks["K6_refuses_no_curry"] = False
+    except K.ClassifyRefusal as e:
+        checks["K6_refuses_no_curry"] = "nothing curries" in str(e)
 
     print()
     for k, v in checks.items():
@@ -101,12 +118,12 @@ def summarize(xs):
     if failed:
         print(f"\nFAILED: {failed}")
         return 1
-    print(f"\nCLASSIFY: every free name lands in its alphabet and the "
-          f"alphabet decides the action — pure/effectful verdicts exact on "
-          f"real SDK code, placement from the learned rings, the curry plan "
-          f"issuing all five actions, and effects LOCALIZED to the single "
-          f"block that carries them (the one law at name grain). "
-          f"{len(checks)} checks green.")
+    print(f"\nCLASSIFY (for real this time): a curried function BECOMES a "
+          f"class — construction binds the curried alphabet (monotone, "
+          f"soup-named, heat-counted), the call applies the residue, the "
+          f"emitted source is standalone code out with the alphabets as "
+          f"data, the decider picks the slots, and the group case is one "
+          f"class with many residue methods. {len(checks)} checks green.")
     return 0
 
 

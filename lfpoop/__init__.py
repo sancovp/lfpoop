@@ -10,6 +10,7 @@ from . import gp
 from . import blocks
 from . import rollup
 from . import envelope
+from . import alphabets
 from . import classify
 from .climb import kleene_climb, REQUIREMENTS
 # chains imports uco; kept lazy so the stdlib core stays zero-dep:

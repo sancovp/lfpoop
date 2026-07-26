@@ -1,167 +1,176 @@
-"""classify — the classification tier (MVP gap ②): alphabets drive the curry.
+"""classify — CLASS-IFY: turn a curried function into a CLASS (the real ②).
 
-Every free name of a candidate/function/block falls into exactly one
-ALPHABET, and the alphabet decides what the compiler DOES with it — this is
-"classifies a certain way" made mechanical, and it is the one law
-("code only for external effects; everything else is instruction") applied
-at name grain:
+The word is the spec: to classify a curried function is to MAKE IT A CLASS.
+Partial application, reified:
 
-  chain            bound by the dataflow (params / prior writes) — already
-                   curried by blockify; not a global concern.
-  ring:<r>         a member of a KNOWN ring (the learned roll-up) — the
-                   name couples the code to that ring; placement follows
-                   the mass of these.
-  config           a known config slot (an apionize-style curried
-                   alphabet) — CURRIES OUT into a bind-once slot.
-  ambient:pure     stdlib computation (math, json, re, ...) — stays
-                   ambient; imposes nothing.
-  ambient:effect   the world (os, sys, subprocess, open, exec, ...) — the
-                   ONE-LAW marker: anything touching these is CODE-side,
-                   never instruction; effects localize to the blocks that
-                   carry them.
-  demand           resolvable nowhere — a GROWTH CONE: the name of what
-                   must arrive before this code can close.
+    CONSTRUCTION = binding the CURRIED alphabet (the config slots) —
+                   monotone, one substitution per bind(), soup until the
+                   LFP of substitutions closes (heat = unbound count);
+    THE CALL     = applying the RESIDUE (the per-call parameters that
+                   stayed free) — refused BY NAME while any slot is open;
+    THE CLASS    = the curried function as a first-class, stateful,
+                   composable, data-carrying object: __curried__,
+                   __residue__, __impl__ ride the class as metadata, so
+                   the class-ified form is queryable ontology like
+                   everything else.
 
-verdict(function) from its alphabet mix:  effectful ≻ open ≻
-config_dependent ≻ ring_coupled ≻ pure  (first that applies).
+This is what the whole pipeline was building toward: blocks functionalizes
+(statement → function of its frees), the curry decider (alphabets.py) says
+WHICH frees are config, and classify turns the curried result into the
+class — the unit the onion rolls up base→meta→super. apionize is the
+group case (many callables sharing one curried alphabet → one class, many
+residue methods); class_ify_group re-expresses it as CODE OUT.
 
-curry_plan(source, context) — THE DRIVER: for each free name, the action:
-  config → curry_to_slot · ring:<r> → bind_ring · ambient:pure → leave ·
-  ambient:effect → isolate_effect · demand → demand. The plan is what
-  apionize did for shared params, generalized to every free name by
-  classification instead of frequency.
+Everything here EMITS SOURCE (code out, per the thesis) and then compiles
+it; the shadow law applies: the class-ified form must behave identically
+to direct application of the original.
 
-classify_blocks(source) localizes effects at BLOCK grain: each block's
-global frees classified separately, so ONE effectful statement marks ONE
-block, not the whole function — the split the one law needs.
-
-The taxonomies (PURE_AMBIENT / EFFECT_AMBIENT / EFFECT_CALLS) are DATA —
-a v0 curation, governor-extensible, honestly incomplete rather than
-silently wrong. Stdlib + lfpoop.blocks.
+Stdlib + lfpoop.alphabets.
 """
 import ast
-import builtins
 import textwrap
 
-from . import blocks as B
-
-_BUILTINS = set(dir(builtins))
-
-PURE_AMBIENT = {
-    "math", "json", "re", "itertools", "functools", "textwrap", "hashlib",
-    "ast", "inspect", "random", "string", "collections", "typing",
-    "dataclasses", "copy", "enum", "decimal", "fractions", "statistics",
-}
-EFFECT_AMBIENT = {
-    "os", "sys", "subprocess", "socket", "urllib", "http", "shutil",
-    "sqlite3", "tempfile", "pathlib", "io", "threading", "signal", "time",
-}
-EFFECT_CALLS = {"open", "exec", "eval", "print", "input", "__import__"}
+from .alphabets import curry_plan
 
 
-def _free_and_calls(source):
+class ClassifyRefusal(ValueError):
+    """A function this transformer cannot honestly class-ify — named."""
+
+
+def _fn_info(source):
     tree = ast.parse(textwrap.dedent(source))
     fdef = tree.body[0]
-    params = {a.arg for a in fdef.args.args}
-    loads, stores, calls = set(), set(params), set()
-    for n in ast.walk(fdef):
-        if isinstance(n, ast.Name):
-            (loads if isinstance(n.ctx, ast.Load) else stores).add(n.id)
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name):
-            calls.add(n.func.id)
-    free = sorted((loads - stores) - (_BUILTINS - EFFECT_CALLS))
-    return free, calls, fdef, sorted(params)
+    if not isinstance(fdef, ast.FunctionDef):
+        raise ClassifyRefusal("input must be a single function def")
+    params = [a.arg for a in fdef.args.args]
+    defaults = {}
+    for a, d in zip(reversed(fdef.args.args),
+                    reversed(fdef.args.defaults)):
+        defaults[a.arg] = ast.unparse(d)
+    return fdef.name, params, defaults
 
 
-def classify_name(name, context):
-    """One free name → its alphabet."""
-    context = context or {}
-    for ring, members in (context.get("rings") or {}).items():
-        if name in members:
-            return f"ring:{ring}"
-    if name in (context.get("config_slots") or ()):
-        return "config"
-    if name in EFFECT_AMBIENT or name in EFFECT_CALLS:
-        return "ambient:effect"
-    if name in PURE_AMBIENT:
-        return "ambient:pure"
-    if name in (context.get("known") or ()):
-        return "known"
-    return "demand"
+def class_ify(source, slots=None, context=None, class_name=None):
+    """ONE curried function → ONE class, as SOURCE (code out).
+
+    slots: the curried alphabet (which params become construction-bound
+    state). If omitted, the curry decider chooses (config-classified
+    params). The residue = the remaining params = the call surface.
+    Returns (class_source, meta)."""
+    name, params, defaults = _fn_info(source)
+    if slots is None:
+        slots = curry_plan(source, context)["slots"]
+    slots = [s for s in params if s in set(slots)]      # signature order
+    residue = [p for p in params if p not in slots]
+    if not slots:
+        raise ClassifyRefusal(
+            f"{name}: nothing curries — no config alphabet among params "
+            f"{params}; a class with no bound state is just the function")
+    cname = class_name or name.title().replace("_", "")
+    res_sig = ", ".join(f"{p}={defaults[p]}" if p in defaults else p
+                        for p in residue)
+    res_pass = ", ".join(f"{p}={p}" for p in residue)
+    slot_pass = ", ".join(f"{s}=self._bound['{s}']" for s in slots)
+    lines = [
+        f"# GENERATED by lfpoop.classify — {name}, class-ified",
+        f"# curried: {slots}  residue: {residue}",
+        textwrap.dedent(source).strip().replace(
+            f"def {name}(", f"def _impl_{name}(", 1),
+        "",
+        f"class {cname}:",
+        f"    __curried__ = {tuple(slots)!r}",
+        f"    __residue__ = {tuple(residue)!r}",
+        f"    __impl__ = {name!r}",
+        f"    def __init__(self, **bindings):",
+        f"        self._bound = {{}}",
+        f"        for k, v in bindings.items():",
+        f"            self.bind(k, v)",
+        f"    def bind(self, slot, value):",
+        f"        if slot not in self.__curried__:",
+        f"            raise KeyError(",
+        f"                f'{{slot!r}} is not in the curried alphabet '",
+        f"                f'{{self.__curried__}} (residue goes to the call)')",
+        f"        if slot in self._bound:",
+        f"            raise ValueError(",
+        f"                f'slot {{slot!r}} already bound — substitutions '",
+        f"                f'are monotone; make a new instance to rebind')",
+        f"        self._bound[slot] = value",
+        f"        return self",
+        f"    @property",
+        f"    def heat(self):",
+        f"        return len(self.__curried__) - len(self._bound)",
+        f"    @property",
+        f"    def soup(self):",
+        f"        return [s for s in self.__curried__",
+        f"                if s not in self._bound]",
+        f"    def __call__(self, {res_sig}):" if residue else
+        f"    def __call__(self):",
+        f"        if self.soup:",
+        f"            raise RuntimeError(",
+        f"                f'{cname} is SOUP: unbound slots {{self.soup}} — '",
+        f"                f'bind() them; the call activates at the LFP '",
+        f"                f'of substitutions')",
+        f"        return _impl_{name}({slot_pass}"
+        + (f", {res_pass})" if residue else ")"),
+    ]
+    class_source = "\n".join(lines) + "\n"
+    return class_source, {"name": name, "class_name": cname,
+                          "curried": slots, "residue": residue}
 
 
-def classify_source(source, context=None):
-    """The function's alphabet map + verdict + placement."""
-    free, calls, fdef, params = _free_and_calls(source)
-    alphabet = {n: classify_name(n, context) for n in free}
-    # a PARAM that names a known config slot IS the curried alphabet
-    # showing up in the signature (apionize's case) — classify it too
-    for pname in params:
-        if pname in ((context or {}).get("config_slots") or ()):
-            alphabet[pname] = "config"
-    effectful = (any(c == "ambient:effect" for c in alphabet.values())
-                 or bool(calls & EFFECT_CALLS))
-    mass = {}
-    for n, c in alphabet.items():
-        if c.startswith("ring:"):
-            mass[c[5:]] = mass.get(c[5:], 0) + 1
-    placement = (max(sorted(mass), key=lambda r: mass[r])
-                 if mass else None)
-    if effectful:
-        verdict = "effectful"
-    elif any(c == "demand" for c in alphabet.values()):
-        verdict = "open"
-    elif any(c == "config" for c in alphabet.values()):
-        verdict = "config_dependent"
-    elif placement:
-        verdict = f"ring_coupled:{placement}"
-    else:
-        verdict = "pure"
-    return {"name": fdef.name, "alphabet": alphabet, "verdict": verdict,
-            "placement": placement,
-            "effect_calls": sorted(calls & EFFECT_CALLS)}
+def compile_class(class_source, meta, globals_ns=None):
+    ns = dict(globals_ns or {})
+    exec(class_source, ns)
+    return ns[meta["class_name"]]
 
 
-_ACTION = {"config": "curry_to_slot", "ambient:pure": "leave",
-           "ambient:effect": "isolate_effect", "demand": "demand",
-           "known": "leave"}
-
-
-def curry_plan(source, context=None):
-    """THE DRIVER: per free name, what the compiler does with it."""
-    c = classify_source(source, context)
-    plan = {}
-    for n, alpha in c["alphabet"].items():
-        plan[n] = (f"bind_ring:{alpha[5:]}" if alpha.startswith("ring:")
-                   else _ACTION[alpha])
-    return {"plan": plan, "verdict": c["verdict"],
-            "placement": c["placement"],
-            "slots": sorted(n for n, a in plan.items()
-                            if a == "curry_to_slot"),
-            "demands": sorted(n for n, a in plan.items()
-                              if a == "demand")}
-
-
-def classify_blocks(source, context=None):
-    """Effect LOCALIZATION at block grain: each block's own global frees
-    classified — one effectful statement marks one block, not the whole
-    function."""
-    blocks, meta = B.blockify_source(source)
-    chainbound = set(meta["params"])
-    out = []
-    for b in blocks:
-        node = ast.parse(b["source"]).body[0]
-        loads = {n.id for n in ast.walk(node)
-                 if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
-        calls = {n.func.id for n in ast.walk(node)
-                 if isinstance(n, ast.Call)
-                 and isinstance(n.func, ast.Name)}
-        glob = sorted((loads - chainbound - set(b["writes"]))
-                      - (_BUILTINS - EFFECT_CALLS))
-        alphabet = {n: classify_name(n, context) for n in glob}
-        effectful = (any(c == "ambient:effect" for c in alphabet.values())
-                     or bool(calls & EFFECT_CALLS))
-        out.append({**b, "global_frees": alphabet,
-                    "effect": effectful})
-        chainbound |= set(b["writes"])
-    return out
+def class_ify_group(name, sources, slots, class_name=None):
+    """The GROUP case (apionize, as CODE OUT): many functions sharing one
+    curried alphabet → ONE class whose state is the shared slots and whose
+    METHODS are the residues. Returns (class_source, meta)."""
+    cname = class_name or name.title().replace("_", "")
+    infos = [_fn_info(src) for src in sources]
+    lines = [f"# GENERATED by lfpoop.classify — group class {cname}",
+             f"# shared curried alphabet: {sorted(slots)}"]
+    for src, (fname, _, _) in zip(sources, infos):
+        lines.append(textwrap.dedent(src).strip().replace(
+            f"def {fname}(", f"def _impl_{fname}(", 1))
+        lines.append("")
+    lines += [
+        f"class {cname}:",
+        f"    __curried__ = {tuple(sorted(slots))!r}",
+        f"    def __init__(self, **bindings):",
+        f"        self._bound = {{}}",
+        f"        for k, v in bindings.items():",
+        f"            if k not in self.__curried__:",
+        f"                raise KeyError(f'{{k!r}} not in the curried "
+        f"alphabet')",
+        f"            self._bound[k] = v",
+        f"    @property",
+        f"    def soup(self):",
+        f"        return [s for s in self.__curried__",
+        f"                if s not in self._bound]",
+    ]
+    methods = {}
+    for src, (fname, params, defaults) in zip(sources, infos):
+        f_slots = [p for p in params if p in set(slots)]
+        f_res = [p for p in params if p not in set(slots)]
+        methods[fname] = {"curried": f_slots, "residue": f_res}
+        res_sig = ", ".join(f"{p}={defaults[p]}" if p in defaults else p
+                            for p in f_res)
+        call_args = ", ".join(
+            [f"{s}=self._bound['{s}']" for s in f_slots]
+            + [f"{p}={p}" for p in f_res])
+        lines += [
+            f"    def {fname}(self, {res_sig})"
+            f":" if f_res else f"    def {fname}(self):",
+            f"        missing = [s for s in {tuple(f_slots)!r}",
+            f"                   if s not in self._bound]",
+            f"        if missing:",
+            f"            raise RuntimeError(",
+            f"                f'{fname} is SOUP: unbound {{missing}}')",
+            f"        return _impl_{fname}({call_args})",
+        ]
+    class_source = "\n".join(lines) + "\n"
+    return class_source, {"class_name": cname, "methods": methods,
+                          "curried": sorted(slots)}
