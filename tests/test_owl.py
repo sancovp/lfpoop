@@ -150,6 +150,25 @@ def main():
         inst2.get_method("shout")() == "HELLO, WORLD!"
         and W.document(inst2) == odoc)
 
+    # underscored ring/verb names round-trip too (the 2026-07-26 verifier
+    # caught the id-split losing underscores; verb_name is now authoritative
+    # — and LFPOOP's own vocabulary is full of underscores)
+    UND = O2.RingSpec(
+        name="My_Greet", adds=["say_hi"], requires=[],
+        verbs=[O2.VerbSpec(name="say_hi", slots=["who"],
+                           source="return 'hi ' + self.who")])
+    uinst = O2.assemble("Und_Onion", [UND])
+    bind(uinst, "who", "isaac")
+    udoc = W.document(uinst)
+    urings = W.rings_from_owl(udoc)
+    uinst2 = O2.assemble("Und_Onion", urings)
+    bind(uinst2, "who", "isaac")
+    checks["underscored_names_roundtrip"] = (
+        [r.name for r in urings] == ["My_Greet"]
+        and urings[0].verbs[0].name == "say_hi"
+        and uinst2.get_method("say_hi")() == "hi isaac"
+        and W.document(uinst2) == udoc)
+
     # ── the store renders via the kleene_climb derivation ──
     with tempfile.TemporaryDirectory() as td:
         store = CT.Store(os.path.join(td, "store.jsonl"))

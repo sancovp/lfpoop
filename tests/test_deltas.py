@@ -125,21 +125,31 @@ def main():
         and conflicts[0]["a"]["value"] == 1
         and conflicts[0]["b"]["value"] == 999)
 
-    # fork: lineage recorded; witnessing DOES NOT transfer
+    # fork: lineage recorded; EVIDENCE does not transfer — neither cooling
+    # NOR rites (the 2026-07-26 verifier caught rites riding in on inherited
+    # docs/packages/tests; only graph_identity — a structural fact of the
+    # same source — survives)
     with tempfile.TemporaryDirectory() as td:
         store = CT.Store(os.path.join(td, "store.jsonl"))
         rec = CT.mirror(main)
         rec["name"] = "parent"
         rec["golden_history"] = [["execution", "testing"]]
+        rec["generated_documentation"] = ["parent.md"]
+        rec["generated_packages"] = ["parent.tar"]
+        rec["tests"] = ["test_parent.py"]
         store.append(rec)
         child = DL.fork("parent", "coord1", store, witness="test")
         located = kleene_climb("parent@coord1", store)
         checks["fork_lineage_and_nontransfer"] = (
             child["name"] == "parent@coord1"
             and child["golden_history"] == []
+            and child["generated_documentation"] == []
+            and child["generated_packages"] == []
+            and child["tests"] == []
             and child["provenance"] == [
                 "forked_from:parent:at:coord1:by:test"]
             and located["position"]["witnessed"] == []
+            and located["position"]["rites"] == ["graph_identity"]
             and kleene_climb("parent", store)["position"]["witnessed"]
             == ["execution", "testing"])
         try:

@@ -84,7 +84,7 @@ def render_tbox():
                   f'  </owl:DatatypeProperty>')
     for p in ("adds", "requires", "has_verb"):
         fr.append(f'  <owl:ObjectProperty rdf:about="#{p}"/>')
-    for p in ("verb_source", "verb_slots", "bound"):
+    for p in ("verb_name", "verb_source", "verb_slots", "bound"):
         fr.append(f'  <owl:DatatypeProperty rdf:about="#{p}"/>')
 
     def _defined(name, props):
@@ -171,6 +171,8 @@ def render_ring(ring):
         fr.append(
             f'  <owl:NamedIndividual rdf:about="#{_esc(vid)}">\n'
             f'    <rdf:type rdf:resource="#Verb"/>\n'
+            f'    <verb_name rdf:datatype="{XSD_STR}">'
+            f'{_esc(v.name)}</verb_name>\n'
             f'    <verb_source rdf:datatype="{XSD_STR}">'
             f'{_esc(v.source)}</verb_source>\n'
             f'    <verb_slots rdf:datatype="{XSD_STR}">'
@@ -233,14 +235,19 @@ def rings_from_owl(owl_text: str):
         if ln(el) == "NamedIndividual":
             about = el.attrib.get(f"{RDF}about", "")
             if about.startswith("#verb_"):
-                src = slots = ""
+                vname = src = slots = ""
                 for c in el:
+                    if ln(c) == "verb_name":
+                        vname = c.text or ""
                     if ln(c) == "verb_source":
                         src = c.text or ""
                     if ln(c) == "verb_slots":
                         slots = c.text or ""
+                # verb_name is authoritative (ids are underscore-lossy —
+                # the 2026-07-26 verifier's finding); the id split is only
+                # a fallback for documents emitted before verb_name existed
                 verbs[about[1:]] = O2.VerbSpec(
-                    name=about[1:].split("_", 2)[2], source=src,
+                    name=vname or about[1:].split("_", 2)[2], source=src,
                     slots=[s for s in slots.split(",") if s])
     rings = []
     for el in root.iter():

@@ -155,9 +155,15 @@ def crossover(gene_a: dict, gene_b: dict):
 # ── fork(): the sibling at a new coordinate, lineage recorded ───────────────
 
 def fork(name: str, coordinate: str, store, witness: str) -> dict:
-    """Fork a stored node whole at a new coordinate. Structure travels;
-    WITNESS HISTORY DOES NOT (non-transferability: grades are earned per
-    instance, never inherited) — the fork re-enters cooling at the bottom."""
+    """Fork a stored node whole at a new coordinate. STRUCTURE travels
+    (kind, python_path, graph_identity — the content hash of the same
+    source, a structural fact — and the realization level of the code);
+    EVIDENCE DOES NOT (non-transferability: grades are earned per instance,
+    never inherited) — cooling history, tests, generated documentation /
+    agents / packages, and adapters are the PARENT's artifacts, so the fork
+    re-enters with them EMPTY and every rite except graph_identity must be
+    re-earned (the 2026-07-26 verifier's finding: stripping only
+    golden_history let rites ride in on inherited artifacts)."""
     hist = [r for r in store.history(name) if r.get("kind") != "witness"]
     if not hist:
         raise DeltaError(f"fork: no such node {name!r} in the store")
@@ -166,7 +172,9 @@ def fork(name: str, coordinate: str, store, witness: str) -> dict:
     src = hist[-1]
     child = copy.deepcopy(src)
     child["name"] = f"{name}@{coordinate}"
-    child["golden_history"] = []                  # witnessing never transfers
+    for evidence in ("golden_history", "tests", "generated_documentation",
+                     "generated_agents", "generated_packages", "adapters"):
+        child[evidence] = []                      # evidence never transfers
     child["provenance"] = [
         f"forked_from:{name}:at:{coordinate}:by:{witness}"]
     return store.append(child)

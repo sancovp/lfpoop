@@ -23,7 +23,11 @@ itself DATA and adds the ACTIVATION SEMANTICS — the atom of the whole kit:
 
 v1's laws carry over unchanged as the composition gate: requires validated
 inside-out with the gap named; every self.X a verb's body touches must be in
-adds ∪ requires ∪ slots or the assembly REFUSES naming the leak.
+adds ∪ requires ∪ slots or the assembly REFUSES naming the leak. HONEST
+LABEL: the leak scan is SYNTACTIC (literal self.X only) — getattr/aliasing
+evade the refusal, but the escaped access is INERT (the attribute does not
+exist on the assembly, so calling raises AttributeError; no capability is
+granted). Defense-in-depth, not an airtight boundary.
 
 Requires pydantic + pydantic_stack_core (the one optional-extra module in the
 SDK; the core stays stdlib+uco). kleene_climb at method grain = soup()/heat().
