@@ -8,6 +8,7 @@ from . import onion
 from . import deltas
 from . import gp
 from . import blocks
+from . import rollup
 from .climb import kleene_climb, REQUIREMENTS
 # chains imports uco; kept lazy so the stdlib core stays zero-dep:
 #   from lfpoop import chains
