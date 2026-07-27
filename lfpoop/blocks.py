@@ -94,24 +94,44 @@ def blockify(fn):
     return blockify_source(src, fn.__globals__)
 
 
-def blockify_source(src, globals_ns=None):
+_OPAQUE_NODES = (ast.AsyncFunctionDef, ast.Lambda, ast.Global,
+                 ast.Nonlocal, ast.FunctionDef, ast.ClassDef)
+
+
+def _needs_opaque(stmt):
+    return any(isinstance(n, _OPAQUE_NODES) for n in ast.walk(stmt))
+
+
+def blockify_source(src, globals_ns=None, opaque=False):
     """blockify from SOURCE TEXT (the candidate-envelope intake path —
-    exec'd code has no inspect.getsource). Same contract as blockify."""
+    exec'd code has no inspect.getsource). Same contract as blockify.
+
+    opaque=True — THE TOTALITY MODE (the onionize driver's setting): a
+    statement the decomposer cannot honestly open (nested def/lambda/
+    class/global) becomes ONE SEALED BLOCK (kind='opaque') with derived
+    reads/writes but unexpanded interior — the transform stays total and
+    the honesty lives in GRANULARITY, recorded on the block. Caveat,
+    stated: a sealed closure over a chain variable captures the value at
+    its block; the shadow law is the arbiter. opaque=False (default)
+    keeps the v0 refusal."""
     src = textwrap.dedent(src)
     tree = ast.parse(src)
     fdef = tree.body[0]
     if not isinstance(fdef, ast.FunctionDef):
         raise BlockifyRefusal("input must be a plain function")
-    for n in ast.walk(fdef):
-        if isinstance(n, (ast.AsyncFunctionDef, ast.Lambda, ast.GlobalStmt
-                          if hasattr(ast, "GlobalStmt") else ast.Global,
-                          ast.Nonlocal)) or (isinstance(n, ast.FunctionDef)
-                                             and n is not fdef):
-            raise BlockifyRefusal(
-                f"v0 refuses nested defs/lambdas/global tricks "
-                f"(line {getattr(n, 'lineno', '?')}) — out of scope, "
-                f"not silently mangled")
-    params = [a.arg for a in fdef.args.args]
+    if not opaque:
+        for n in ast.walk(fdef):
+            if isinstance(n, _OPAQUE_NODES) and n is not fdef:
+                raise BlockifyRefusal(
+                    f"v0 refuses nested defs/lambdas/global tricks "
+                    f"(line {getattr(n, 'lineno', '?')}) — out of scope, "
+                    f"not silently mangled (onionize uses opaque=True)")
+    a = fdef.args
+    params = ([x.arg for x in getattr(a, "posonlyargs", [])]
+              + [x.arg for x in a.args]
+              + ([a.vararg.arg] if a.vararg else [])
+              + [x.arg for x in a.kwonlyargs]
+              + ([a.kwarg.arg] if a.kwarg else []))   # the FULL signature
     body = [s for s in fdef.body
             if not (isinstance(s, ast.Expr)
                     and isinstance(s.value, ast.Constant)
@@ -120,13 +140,36 @@ def blockify_source(src, globals_ns=None):
     for i, stmt in enumerate(body):
         reads = sorted({n for n in _names(stmt, ast.Load)
                         if n in bound})            # free w.r.t. the chain
-        writes = sorted({n for n in _names(stmt, ast.Store)})
-        if _kind(stmt) == "control":
+        writes = {n for n in _names(stmt, ast.Store)}
+        # names scoped INSIDE the statement never reach the chain:
+        # comprehension targets (py3 comprehensions have their own scope)
+        # and `except ... as e` names (deleted at handler exit)
+        scoped = set()
+        for n in ast.walk(stmt):
+            if isinstance(n, (ast.ListComp, ast.SetComp, ast.DictComp,
+                              ast.GeneratorExp)):
+                for gen in n.generators:
+                    scoped.update(_names(gen.target, ast.Store))
+            if isinstance(n, ast.ExceptHandler) and n.name:
+                scoped.add(n.name)
+        writes -= scoped
+        for n in ast.walk(stmt):                   # defs/classes/imports
+            if isinstance(n, (ast.FunctionDef, ast.ClassDef)) \
+                    and n is not stmt or (n is stmt and isinstance(
+                        n, (ast.FunctionDef, ast.ClassDef))):
+                writes.add(n.name)
+            if isinstance(n, (ast.Import, ast.ImportFrom)):
+                writes.update(a.asname or a.name.split(".")[0]
+                              for a in n.names)
+        writes = sorted(writes)
+        kind = ("opaque" if opaque and _needs_opaque(stmt)
+                else _kind(stmt))
+        if kind in ("control", "opaque"):
             # a CONDITIONAL write must pass the prior value through when
             # its branch does not fire — so already-bound write targets
             # are also reads (found live: `if k == n: hi = 1.0`)
             reads = sorted(set(reads) | (set(writes) & bound))
-        blocks.append({"i": i, "kind": _kind(stmt),
+        blocks.append({"i": i, "kind": kind,
                        "reads": reads, "writes": writes,
                        "source": ast.unparse(stmt)})
         bound |= set(writes)
@@ -136,11 +179,17 @@ def blockify_source(src, globals_ns=None):
 
 
 def functionalize(block, prefix="block"):
-    """One block → one function of exactly its reads (source text)."""
+    """One block → one function of exactly its reads (source text). The
+    tail returns only the writes ACTUALLY BOUND at runtime (a dict from
+    locals()) — a zero-iteration loop target or an unfired conditional
+    write simply doesn't come back, exactly like the original scope
+    (found live: `for k in path[:-1]` with an empty path)."""
     args = ", ".join(block["reads"])
     body = textwrap.indent(block["source"], "    ")
-    writes = ", ".join(block["writes"])
-    tail = f"    return ({_SENTINEL}, ({writes}{',' if writes else ''}))"
+    tail = (f"    _loc = locals()\n"
+            f"    return ({_SENTINEL}, "
+            f"{{w: _loc[w] for w in {tuple(block['writes'])!r} "
+            f"if w in _loc}})")
     return (f"def {prefix}_{block['i']}({args}):\n{body}\n{tail}\n")
 
 
@@ -166,8 +215,8 @@ def emit(fn, class_name=None):
                      f"and _r[0] == {_SENTINEL}):")
         lines.append(f"        return _r        # the block hit an original "
                      f"return")
-        if b["writes"]:
-            lines.append(f"    ({', '.join(b['writes'])},) = _r[1]")
+        for w in b["writes"]:
+            lines.append(f"    if '{w}' in _r[1]: {w} = _r[1]['{w}']")
     lines.append("    return None")
     lines.append("")
     lines.append(f"# SUPER: the onion class — base ring + the chained verb")
@@ -217,8 +266,8 @@ def emit_from_blocks(blocks, meta):
         lines.append(f"    if not (isinstance(_r, tuple) and len(_r) == 2 "
                      f"and _r[0] == {_SENTINEL}):")
         lines.append(f"        return _r")
-        if b["writes"]:
-            lines.append(f"    ({', '.join(b['writes'])},) = _r[1]")
+        for w in b["writes"]:
+            lines.append(f"    if '{w}' in _r[1]: {w} = _r[1]['{w}']")
     lines.append("    return None")
     lines.append(f"class {class_name}:")
     lines.append(f"    {name} = staticmethod({name})")

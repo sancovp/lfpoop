@@ -12,6 +12,7 @@ from . import rollup
 from . import envelope
 from . import alphabets
 from . import classify
+from . import onionize
 from .climb import kleene_climb, REQUIREMENTS
 # chains imports uco; kept lazy so the stdlib core stays zero-dep:
 #   from lfpoop import chains

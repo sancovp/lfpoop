@@ -48,7 +48,7 @@ def main():
     ns = dict(meta["globals"])
     exec(B.functionalize(blks[1], "t"), ns)          # p = k / n
     checks["B2_block_runs_standalone"] = ns["t_1"](k=5, n=58) == (
-        "__w__", (5 / 58,))
+        "__w__", {"p": 5 / 58})
 
     # B3 — the shadow law, exact over real sweeps.
     rebuilt, src, m2, cls = B.roundtrip(wilson)
