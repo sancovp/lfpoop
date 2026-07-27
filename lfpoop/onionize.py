@@ -236,12 +236,12 @@ def onionize_module(module, learn=True, rng_seed=13):
 _BOOTSTRAP = """
 import importlib.util, sys
 sys.path.insert(0, {pkg_root!r})
-import {package}                                   # the real package first
+{pkg_import}
 spec = importlib.util.spec_from_file_location({fullname!r}, {onion_path!r})
 mod = importlib.util.module_from_spec(spec)
 sys.modules[{fullname!r}] = mod                    # the SWAP
 spec.loader.exec_module(mod)
-setattr({package}, {attr!r}, mod)
+{pkg_setattr}
 sys.path.insert(0, {test_dir!r})
 import {test_mod} as T
 sys.exit(T.main())
@@ -250,15 +250,19 @@ sys.exit(T.main())
 
 def shadow_module(onion_source, fullname, test_path, pkg_root):
     """THE MODULE-GRAIN SHADOW LAW: run the module's OWN suite against the
-    onionized build, in a subprocess. Returns (green, output)."""
+    onionized build, in a subprocess. Returns (green, output). Works for a
+    package submodule (lfpoop.deltas) AND a standalone top-level module
+    (wordstats) — the swap is by sys.modules either way."""
     package, _, attr = fullname.rpartition(".")
     with tempfile.TemporaryDirectory() as td:
         onion_path = os.path.join(td, f"{attr}_onion.py")
         with open(onion_path, "w") as f:
             f.write(onion_source)
         boot = _BOOTSTRAP.format(
-            pkg_root=pkg_root, package=package, fullname=fullname,
-            onion_path=onion_path, attr=attr,
+            pkg_root=pkg_root, fullname=fullname, onion_path=onion_path,
+            pkg_import=(f"import {package}" if package else ""),
+            pkg_setattr=(f"setattr({package}, {attr!r}, mod)"
+                         if package else ""),
             test_dir=os.path.dirname(os.path.abspath(test_path)),
             test_mod=os.path.splitext(os.path.basename(test_path))[0])
         boot_path = os.path.join(td, "_boot.py")
