@@ -138,7 +138,14 @@ def blockify_source(src, globals_ns=None, opaque=False):
                     and isinstance(s.value.value, str))]   # drop docstring
     blocks, bound = [], set(params)
     for i, stmt in enumerate(body):
-        reads = sorted({n for n in _names(stmt, ast.Load)
+        load_names = set(_names(stmt, ast.Load))
+        # AugAssign (`x += ..`) and walrus targets READ before they write —
+        # AST-Store-only, so add them explicitly or the recompiled block
+        # UnboundLocalErrors (v4 verifier HIGH-1, falsifiable on owl.py)
+        for n in ast.walk(stmt):
+            if isinstance(n, ast.AugAssign):
+                load_names |= set(_names(n.target, ast.Store))
+        reads = sorted({n for n in load_names
                         if n in bound})            # free w.r.t. the chain
         writes = {n for n in _names(stmt, ast.Store)}
         # names scoped INSIDE the statement never reach the chain:
@@ -164,14 +171,29 @@ def blockify_source(src, globals_ns=None, opaque=False):
         writes = sorted(writes)
         kind = ("opaque" if opaque and _needs_opaque(stmt)
                 else _kind(stmt))
+        capture_risk = False
+        if kind == "opaque":
+            # a sealed closure that reads a chain var later REBOUND diverges
+            # (captures the value at its block, not the final one) — flag it
+            # so totality is HONEST about the one unsound case (v4 MED-4)
+            closure_reads = {n for sub in ast.walk(stmt)
+                             if isinstance(sub, (ast.FunctionDef,
+                                                 ast.Lambda))
+                             for n in _names(sub, ast.Load)}
+            rest_writes = set()
+            for later in body[i + 1:]:
+                rest_writes |= set(_names(later, ast.Store))
+            capture_risk = bool(closure_reads & rest_writes & bound)
         if kind in ("control", "opaque"):
             # a CONDITIONAL write must pass the prior value through when
             # its branch does not fire — so already-bound write targets
             # are also reads (found live: `if k == n: hi = 1.0`)
             reads = sorted(set(reads) | (set(writes) & bound))
-        blocks.append({"i": i, "kind": kind,
-                       "reads": reads, "writes": writes,
-                       "source": ast.unparse(stmt)})
+        rec = {"i": i, "kind": kind, "reads": reads, "writes": writes,
+               "source": ast.unparse(stmt)}
+        if capture_risk:
+            rec["capture_risk"] = True
+        blocks.append(rec)
         bound |= set(writes)
     sig = ast.unparse(fdef.args)
     return blocks, {"name": fdef.name, "params": params,

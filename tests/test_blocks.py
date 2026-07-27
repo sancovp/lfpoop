@@ -95,6 +95,24 @@ def main():
         GP.genome([], "someone_else")["id"] == identity["id"]
         and mut["id"] != identity["id"])
 
+    # B7 — AugAssign shadow (the v4 verifier HIGH): real repo functions
+    # with top-level `+=` recompile to IDENTICAL behavior.
+    from lfpoop import owl as _owl
+    aug_ok = True
+    for fn, args in [(_owl.render_sdk_owl, ())]:
+        rb, _, _, _ = B.roundtrip(fn)
+        if rb(*args) != fn(*args):
+            aug_ok = False
+    # a direct augassign micro-case too
+    def accum(xs):
+        total = 0
+        for x in xs:
+            total += x
+        return total
+    rb2, _, _, _ = B.roundtrip(accum)
+    checks["B7_augassign_shadow"] = (aug_ok
+                                     and rb2([1, 2, 3]) == accum([1, 2, 3]))
+
     # B6 — refusal by name.
     def has_nested():
         def inner():

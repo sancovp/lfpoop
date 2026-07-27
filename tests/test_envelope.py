@@ -86,7 +86,22 @@ def main():
                               "ring": "io"}), known_rings=rings)
         checks["E4_unsupported_ring_refused"] = False
     except EnvelopeRefusal as e:
-        checks["E4_unsupported_ring_refused"] = "'stats'" in str(e)
+        # refused either by the support floor (io holds none) or by mass
+        # comparison (stats holds more) — both are honest refusals
+        checks["E4_unsupported_ring_refused"] = (
+            "'stats'" in str(e) or "holds NONE" in str(e))
+    # and a candidate genuinely reading BOTH rings equally cannot claim
+    # the wrong one (>= tie does not go to the claimant — v4 MED-5)
+    tie_src = ("def mix(a):\n    return good(a) + bad(a)\n")
+    tie_rings = {"g": ["good"], "b": ["bad"]}
+    try:
+        intake({"source": tie_src, "seat": "llm:x", "answers_demand": "q",
+                "rationale": "r",
+                "declares": {"reads": ["good", "bad"], "writes": ["mix"],
+                             "ring": "b"}}, known_rings=tie_rings)
+        checks["E4c_tie_not_to_claimant"] = False
+    except EnvelopeRefusal as e:
+        checks["E4c_tie_not_to_claimant"] = ">=" in str(e)
     g_ok, _ = intake(make(declares={"reads": ["compute_span"],
                                     "writes": ["widen_interval"],
                                     "ring": "stats"}), known_rings=rings)

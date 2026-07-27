@@ -88,6 +88,17 @@ def cached(n):
         and "plain" in r4["fine"]
         and ns4["cached"](3) == 12 and ns4["plain"](1) == 2)
 
+    # N5 — capture-risk (v4 MED-4): a closure over a later-rebound var is
+    # SEALED whole (not falsely "fine"), and behaves correctly.
+    cap_mod = ("def f():\n    x = 1\n    def get():\n        return x\n"
+               "    x = 2\n    return get()\n")
+    s5, r5 = O.onionize_module_source(cap_mod, "cap", learn=False)
+    ns5 = {}
+    exec(s5, ns5)
+    checks["N5_capture_risk_sealed_honestly"] = (
+        "f" in r5["sealed"] and "captures" in r5["sealed"]["f"]
+        and "f" not in r5["fine"] and ns5["f"]() == 2)
+
     print()
     for k, v in checks.items():
         print(f"  {'PASS' if v else 'FAIL'}  {k}")

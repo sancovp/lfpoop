@@ -90,6 +90,17 @@ def onionize_module_source(src, module_name="module", learn=True,
                 report["sealed"][node.name] = str(e)
                 fn_names.append(node.name)
                 continue
+            risk = [b["i"] for b in blocks if b.get("capture_risk")]
+            if risk:
+                # an unsound sealed-closure capture — DO NOT claim fine;
+                # seal the whole function verbatim and report the reason
+                # (totality is honest: coarser, never wrong) — v4 MED-4
+                out.append(fsrc + "\n")
+                report["sealed"][node.name] = (
+                    f"closure captures a later-rebound var "
+                    f"(blocks {risk}) — sealed to preserve behavior")
+                fn_names.append(node.name)
+                continue
             out.append(_emit_function(blocks, meta))
             report["fine"][node.name] = {
                 "blocks": len(blocks),

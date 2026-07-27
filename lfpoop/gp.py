@@ -19,9 +19,10 @@ What the grammar loop's (1+1) hill-climb lacked, made structural:
     config choice.
   * CROSSOVER = deltas.crossover (operad composition; same-target conflicts
     surface by name, never silently merged); children carry both parents.
-  * THE GOODHART GUARD BY CONSTRUCTION: the Evaluator is built once with the
-    held-out oracle CLOSED OVER (held in no attribute); mutators are called
-    with the TRAIN VIEW ONLY — the API hands them nothing else.
+  * THE GOODHART GUARD BY SIGNATURE: evolve() calls mutators with ONLY
+    (train_view, rng, registry) — the API hands them nothing else. This is
+    the honest guarantee; it is NOT a sandbox (a determined mutator can
+    reach the oracle via gc/closure — v4 verifier MED-2).
   * PROMOTION = the gauge/handler split at GP grain: a champion's fitness
     record is the GAUGE; promotion requires an EXTERNAL witness accepted
     through the handler seat (codething.accept_witness) — the loop cannot
@@ -104,9 +105,13 @@ def significantly_above(m_a, m_b):
 
 
 class Evaluator:
-    """THE SEALED GAUGE. Built once with the held-out oracle; the oracle is
-    closed over in the evaluate function — this object carries NO attribute
-    holding it, so nothing downstream can read what it must not."""
+    """THE GAUGE. Built once with the held-out oracle closed over in the
+    evaluate function (no attribute names it). HONEST SCOPE (v4 verifier
+    MED-2): this is NOT a security boundary — the oracle is reachable via
+    the closure cell, and from inside a mutator via gc. The REAL guarantee
+    is signature-level: evolve() hands mutators ONLY (train_view, rng,
+    registry) — the Goodhart guard is that the API passes nothing else, not
+    that the held-out data is unreachable by a determined introspector."""
 
     def __init__(self, base_config, eval_fn):
         # eval_fn(phen) -> {"metric": {"k":..,"n":..} | float}; it closes

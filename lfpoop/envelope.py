@@ -61,8 +61,18 @@ def derive(source):
                 loads.add(n.id)
             elif isinstance(n.ctx, ast.Store):
                 stores.add(n.id)
-    reads = sorted(loads - stores - _BUILTINS)
+    # subtract only builtins the source does NOT itself reference as a
+    # global dependency is impossible to know syntactically — but a name
+    # that is ALSO stored is a local, not a builtin. We keep builtin names
+    # that are LOADED-not-stored out of reads UNLESS flagged: the honest
+    # position (v4 verifier MED-3) is that builtin-shadowing globals exist,
+    # so we report reads as (loads - stores) and mark which are builtin-
+    # named, rather than silently dropping them.
+    external = sorted(loads - stores)
+    reads = [n for n in external if n not in _BUILTINS]
+    builtin_shadowed = [n for n in external if n in _BUILTINS]
     return {"reads": reads, "writes": [meta["name"]],
+            "builtin_shadowed": builtin_shadowed,
             "blocks": blocks, "meta": meta}
 
 
@@ -84,15 +94,22 @@ def intake(candidate, known_rings=None, store=None):
     truth = derive(candidate["source"])
     declares = candidate.get("declares", {})
 
-    # declared vs derived — exact, both directions, named.
+    # declared vs derived — exact, both directions, named. Reads are
+    # checked against derived reads PLUS the builtin-shadowed set, so a
+    # truthful declaration of a global that shadows a builtin name (id,
+    # list, sum, type...) is admitted, not falsely refused (v4 MED-3).
     for field in ("reads", "writes"):
         declared = set(declares.get(field, []))
         derived = set(truth[field])
-        if declared != derived:
+        allowed_extra = (set(truth.get("builtin_shadowed", []))
+                         if field == "reads" else set())
+        undeclared = derived - declared
+        overclaimed = declared - derived - allowed_extra
+        if undeclared or overclaimed:
             raise EnvelopeRefusal(
                 f"declared {field} do not match the code: "
-                f"undeclared {sorted(derived - declared)}, "
-                f"overclaimed {sorted(declared - derived)} — "
+                f"undeclared {sorted(undeclared)}, "
+                f"overclaimed {sorted(overclaimed)} — "
                 f"the envelope is a claim and the claim is false")
 
     # placement hypothesis vs wiring mass (when a learned structure exists).
@@ -102,12 +119,25 @@ def intake(candidate, known_rings=None, store=None):
             raise EnvelopeRefusal(f"declared ring {ring!r} does not exist "
                                   f"in the known structure")
         mass = _ring_mass(truth["reads"], known_rings)
-        best = max(sorted(mass), key=lambda r: mass[r])
-        if mass[best] > mass.get(ring, 0):
+        claimed = mass.get(ring, 0)
+        top = max(mass.values()) if mass else 0
+        # support floor: a candidate with reads must have wiring into its
+        # declared ring; and the claim holds only if the declared ring is
+        # the UNIQUE max — a tie means the wiring does not disambiguate, so
+        # it does not go to the claimant (v4 verifier MED-5).
+        contenders = sorted(r for r, m in mass.items() if m >= claimed
+                            and r != ring)
+        if claimed == 0 and truth["reads"]:
             raise EnvelopeRefusal(
-                f"declared ring {ring!r} holds {mass.get(ring, 0)} of the "
-                f"candidate's reads but ring {best!r} holds {mass[best]} — "
-                f"the wiring does not support the placement claim")
+                f"declared ring {ring!r} holds NONE of the candidate's "
+                f"reads {truth['reads']} — the wiring gives no support for "
+                f"the placement claim")
+        if claimed < top or contenders:
+            raise EnvelopeRefusal(
+                f"declared ring {ring!r} holds {claimed} of the candidate's "
+                f"reads but ring(s) {contenders or [max(sorted(mass), key=lambda r: mass[r])]} "
+                f"hold >= that (the wiring does not uniquely support the "
+                f"placement claim)")
 
     name = truth["meta"]["name"]
     genome = GP.genome(
