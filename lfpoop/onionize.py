@@ -208,12 +208,22 @@ def onionize_module_source(src, module_name="module", learn=True,
             for fn in sorted(members):
                 out.append(f"    {fn} = staticmethod({fn})")
             out.append("")
+        # a CLASS is a natural ring — its methods are its members; add the
+        # opened classes to the ring roster so the module onion sees the
+        # whole structure (functions-by-wiring + classes-as-authored-rings)
+        class_rings = sorted(report.get("classes", {}))
         onion_name = (module_name.split('.')[-1].title().replace('_', '')
                       + "Onion")
         out.append(f"class {onion_name}:")
-        out.append(f"    __rings__ = {ring_cls!r}")
+        out.append(f"    __function_rings__ = {ring_cls!r}")
+        out.append(f"    __class_rings__ = {class_rings!r}")
+        out.append(f"    __rings__ = {ring_cls + class_rings!r}")
         out.append("")
         report["rings"] = {r: sorted(m) for r, m in rings.items()}
+        report["class_rings"] = {
+            c: sorted(list(cr.get("methods_fine", {}))
+                      + list(cr.get("methods_sealed", {})))
+            for c, cr in report.get("classes", {}).items()}
     return "\n".join(out), report
 
 

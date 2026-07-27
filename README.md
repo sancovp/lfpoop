@@ -6,6 +6,27 @@ machinery it describes — standalone, stdlib-only (one dep:
 
 Every object answers one question: **"what is my next admissible closure?"**
 
+## The pipeline: any Python module → its LFPOOPy onion
+
+LFPOOP reads other code and emits its canonical onion form, learns its own
+structure, and predicts admissible combinations — the transform is total and
+proven by the transformed module's OWN test suite:
+
+```
+code IN  →  blocks (statement → logic-block data, functionalized/curried)
+         →  classify (curried function → CLASS; alphabets decide the curry)
+         →  rollup (which functions/classes group — LEARNED from the wiring)
+         →  onionize (the driver: any module → self-contained onion source)
+         →  shadow (the module's OWN suite runs green against the onion)
+         →  predict (given the pool, enumerate admissible compositions + residues)
+CODE OUT ·  and the LLM writes the next candidate through envelope (checked claims)
+```
+
+Proven: **8 real lfpoop modules onionized and each passed its own test suite
+against the onionized build** (`tests/test_onionize_sweep.py`) — augassign,
+classes, nested closures, the Scott domain, the predictor. The driver is
+general, not example-specific.
+
 ## What's in the box
 
 | module | what it is |
@@ -55,6 +76,7 @@ python3 tests/test_classify.py       # CLASS-IFY: curried function → class, sh
 python3 tests/test_alphabets.py      # the curry decider: alphabets drive the actions
 python3 tests/test_onionize.py       # THE DRIVER: module → onion, judged by the module's own suite
 python3 tests/test_predict.py        # the combination predictor: prediction as deduction
+python3 tests/test_onionize_sweep.py # THE CAPSTONE: 8 real modules → onions, each judged by its own suite
 ```
 
 MIT.
