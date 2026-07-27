@@ -99,6 +99,23 @@ def cached(n):
         "f" in r5["sealed"] and "captures" in r5["sealed"]["f"]
         and "f" not in r5["fine"] and ns5["f"]() == 2)
 
+    # N6 — COVERAGE RUNG (MVP #4): classes open at method grain. onionize
+    # lfpoop.gp (Evaluator/Registry classes + nested closures) and run its
+    # OWN 18-check suite against the onionized build — green.
+    from lfpoop import gp as _gp
+    gsrc, greport = O.onionize_module(_gp)
+    ggreen, gout = O.shadow_module(
+        gsrc, "lfpoop.gp",
+        os.path.join(ROOT, "tests", "test_gp.py"), ROOT)
+    checks["N6_class_methods_fine_shadow_green"] = (
+        ggreen
+        and set(greport["classes"]) == {"Evaluator", "Registry"}
+        and "record" in greport["classes"]["Registry"]["methods_fine"]
+        and greport["classes"]["Registry"]["methods_sealed"] == {})
+    if not ggreen:
+        print("  [N6] gp suite tail:")
+        print("\n".join("    " + l for l in gout.splitlines()[-12:]))
+
     print()
     for k, v in checks.items():
         print(f"  {'PASS' if v else 'FAIL'}  {k}")
