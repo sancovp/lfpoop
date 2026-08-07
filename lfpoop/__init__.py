@@ -3,6 +3,7 @@ from .ontology import (THE_QUESTION, LADDER, ARCHITECTURE, COOLING, LOOP,
                        CONDITIONAL_VERBS, PIPELINE, AGENT_RITES, NODE_FIELDS,
                        Node, next_level, admissible_transition, run_loop)
 from . import domain
+from . import dinfinity
 from . import prolog
 from . import onion
 from . import deltas

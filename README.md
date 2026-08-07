@@ -34,6 +34,7 @@ general, not example-specific.
 | `lfpoop/ontology.py` | the Manual as Python data: the realization ladder, the 7 cooling steps, the compiler-loop verbs, the 6 agentification rites, `Node`, `next_level`, `admissible_transition` |
 | `lfpoop/prolog.py` | the SAME source projected to `lfpoop.pl` (`next_admissible_closure/3`, `golden/1`, `is_agent/1`, `state_leq/2`, `kleene/2`) — roundtrip-tested |
 | `lfpoop/domain.py` | the state space as a Scott domain: `leq`, `lub`, a monotone+inflationary `closure_step`, the Kleene chain to ⊤ — and `sdk_state()`, the SDK locating **itself** in its own domain from real artifacts |
+| `lfpoop/dinfinity.py` | **D∞ — Scott's inverse-limit tower as a proof object**: ep-pairs, the function-space functor `D↦[D→D]`, the tower `D_{n+1}=[D_n→D_n]` (over 𝕆: sizes 2·3·10), and the point↪function section — `η` exact and self-application TOTAL + LAWFUL at every level (left-strict, identity-on-representables, discriminating, oracle-matched — every element is also a self-map that can eat itself). The finite ascent to `D∞≅[D∞→D∞]` (where an element IS a function on elements): "the D:D→D seat" made a domain. The infinite `≅` is Scott's LIMIT theorem — at every finite level the retract is strict (defect > 0); the ep-pair laws are checked exhaustively (incl. retract+below over the realization-ladder rung's 92 378 self-maps; monotonicity there by stated-proof certificate, which `valid()` requires — it never treats a skipped check as a pass) |
 | `lfpoop/chains.py` | the compiler loop as a uco `Chain`; executing the chain IS computing the fixpoint (`drive_node`'s state sequence == the Kleene chain, exactly) |
 | `lfpoop/onion.py` | onion runtime stacking: `@ring` layers with declared alphabets, `stack()` runtime class synthesis that REFUSES undeclared capability access naming the leak, a curried composer, `to_data`/`stack_from_data` |
 | `lfpoop/codething.py` | real artifacts mirrored to Node records (content-hash graph identity), an append-only store, `agentify()` (the six rites, granted only against a node's own artifacts), and `accept_witness` — the handler seat |
@@ -63,6 +64,7 @@ artifact or a recorded external witness.
 ```bash
 python3 tests/test_lfpoop.py         # the Manual-as-data + Prolog roundtrip
 python3 tests/test_domain_chains.py  # the Scott domain + UCO retrofit
+python3 tests/test_dinfinity.py      # D∞: the inverse-limit tower, ep-pairs, lawful self-application (26 checks)
 python3 tests/test_full.py           # onion + compiler + gauge/handler + 15→9→7
 python3 tests/test_onion2_climb.py   # ONION-V2 activation semantics + kleene_climb
 python3 tests/test_owl.py            # the recursive self-ontology (owlready2 load iff present)
